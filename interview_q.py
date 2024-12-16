@@ -22,10 +22,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
+
 # additional dependencies
 from scipy.signal import spectrogram
 from scipy.signal import butter, freqs
 import torch.nn.functional as F
+import os
 
 # hyper parameters
 num_epochs = 2000
@@ -37,6 +39,12 @@ sampling_rate = 1024  # sampling freq
 num_predictions = batch_size #32
 
 
+savefoldername = "experiment_run1"
+
+plot_samples = False
+
+if not os.path.exists(savefoldername):
+    os.mkdir(savefoldername)
 
 class ThreeLayerCNN1D(nn.Module):
     def __init__(self):
@@ -308,7 +316,10 @@ def main() -> None:
     plt.figure()
     plt.plot(epoch_array, loss_func_value_list)
     plt.title("loss function value over epochs")
-    plt.show()
+    plt.savefig(os.path.join(savefoldername,"loss_func_epochs.png"))
+
+    if plot_samples:
+        plt.show()
     # predictions
     signals, targets = generate_batch(length=length, sampling_rate=sampling_rate, batch_size=num_predictions)
     out_spectrogram = generate_preprocess_data(signals)
@@ -337,6 +348,7 @@ def main() -> None:
     midpoint_err_sec = np.array(midpoint_err_sec) * 1000.0
     peak_2_err_sec = np.array(peak_2_err_sec) * 1000.0
 
+    print("peak 1, midpoint, and peak 2 detection error (ms)")
     print(np.mean(np.abs(peak_1_err_sec)))
     print(np.std(np.abs(peak_1_err_sec)))
     print(np.mean(np.abs(midpoint_err_sec)))
@@ -363,7 +375,10 @@ def main() -> None:
 
         plt.title(f"Example {i + 1}")
         plt.legend()
-        plt.show()
+        plt.savefig(os.path.join(savefoldername, "prediction_"+str(i)+ ".png" ))
+
+        if plot_samples:
+            plt.show()
 
 
 if __name__ == "__main__":
