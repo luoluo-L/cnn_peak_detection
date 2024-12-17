@@ -302,7 +302,7 @@ def main() -> None:
         signals, targets = generate_batch(length=length, sampling_rate=sampling_rate, batch_size=batch_size)
         out_spectrogram = generate_preprocess_data(signals)
         
-        print(out_spectrogram.shape)
+        #print(out_spectrogram.shape)
         optimizer.zero_grad()
         outputs = model(out_spectrogram)
         
@@ -379,13 +379,11 @@ def main() -> None:
     print((pk2_mean, pk2_std))
 
 
-    results_data = [['Abs Error Mean (peak 1)','Abs Error Std (peak 1)',  
-    'Abs Error Mean (Mid pt)','Abs Error Std (Mid pt)', 
-    'Abs Error Mean (peak 2)','Abs Error Std (peak 2)'], 
+    results_data = [['Abs Error Mean (peak 1) ms','Abs Error Std (peak 1) ms',  
+    'Abs Error Mean (Mid pt) ms','Abs Error Std (Mid pt) ms', 
+    'Abs Error Mean (peak 2) ms','Abs Error Std (peak 2) ms'], 
     [pk1_mean, pk1_std, midpt_mean, midpt_std, pk2_mean, pk2_std]
     ]
-
-
 
 
 
