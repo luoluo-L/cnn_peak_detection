@@ -413,7 +413,7 @@ def main() -> None:
 
         plt.title(f"Example {i + 1}")
         plt.legend()
-        #plt.savefig(os.path.join(savefoldername, "prediction_"+str(i)+ ".png" ))
+        plt.savefig(os.path.join(savefoldername, "prediction_"+str(i)+ ".png" ))
 
         if plot_samples:
             plt.show()
