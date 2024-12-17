@@ -28,9 +28,11 @@ from scipy.signal import spectrogram
 from scipy.signal import butter, freqs
 import torch.nn.functional as F
 import os
+import csv
+from torchsummary import summary
 
 # hyper parameters
-num_epochs = 2000
+num_epochs = 1000
 batch_size = 128 #32 # larger batch size seems to have better training performance
 learning_rate = 0.01 # smaller loss # 0.0001
 
@@ -40,11 +42,20 @@ num_predictions = batch_size #32
 
 
 savefoldername = "experiment_run1"
+savefolder_features = "visualization_features"
 
 plot_samples = False
 
+# File path for the CSV file
+csv_file_path = os.path.join(savefoldername,  
+'example_result.csv')
+
+
 if not os.path.exists(savefoldername):
     os.mkdir(savefoldername)
+
+if not os.path.exists(savefolder_features):
+    os.mkdir(savefolder_features)
 
 class ThreeLayerCNN1D(nn.Module):
     def __init__(self):
@@ -176,7 +187,7 @@ def filter_signal(signal):
     return y
 """
 
-def generate_spectrogram(signal, plotting = False):
+def generate_spectrogram(signal, plotting = False, i = 0):
     """
     generate spectrogram of signal 
     """
@@ -204,7 +215,8 @@ def generate_spectrogram(signal, plotting = False):
 
         # Adjust layout
         plt.tight_layout()
-        plt.show()
+        plt.savefig(os.path.join(savefolder_features, "Features_"+str(i)+ ".png" ))
+        #plt.show()
     return Sxx
 
 
@@ -246,7 +258,7 @@ def generate_batch(
 
 
 
-def generate_preprocess_data(signals_torch_sensors):
+def generate_preprocess_data(signals_torch_sensors,  plotting = False):
     signals_numpy = signals_torch_sensors.detach().cpu().numpy()
     #print(signals_numpy.shape)  # [batchsize, 1, signal_length]
 
@@ -254,7 +266,7 @@ def generate_preprocess_data(signals_torch_sensors):
     for cur_batch_idx in np.arange(batch_size):
 
         cur_signal = signals_numpy[cur_batch_idx,:,:].flatten()
-        cur_spectrogram = generate_spectrogram(cur_signal)
+        cur_spectrogram = generate_spectrogram(cur_signal, plotting = plotting, i = cur_batch_idx)
         #print(cur_spectrogram.shape)
  
         spectrograms.append(torch.tensor(cur_spectrogram, dtype=torch.float32))
@@ -269,6 +281,9 @@ def main() -> None:
     #model.train()
 
     model = ThreeLayerCNN1D()
+    print(model)
+    #input_dim = (128, 65, 31)
+    #summary(model, input_dim)
 
     pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
@@ -287,6 +302,7 @@ def main() -> None:
         signals, targets = generate_batch(length=length, sampling_rate=sampling_rate, batch_size=batch_size)
         out_spectrogram = generate_preprocess_data(signals)
         
+        print(out_spectrogram.shape)
         optimizer.zero_grad()
         outputs = model(out_spectrogram)
         
@@ -322,7 +338,7 @@ def main() -> None:
         plt.show()
     # predictions
     signals, targets = generate_batch(length=length, sampling_rate=sampling_rate, batch_size=num_predictions)
-    out_spectrogram = generate_preprocess_data(signals)
+    out_spectrogram = generate_preprocess_data(signals, plotting = True)
 
     model.eval()
 
@@ -339,7 +355,7 @@ def main() -> None:
 
     for i in range(num_predictions):
         error_vector = predictions[i].numpy() - targets[i].numpy()
-        error_vector_sec = error_vector/sampling_rate
+        error_vector_sec = error_vector *length /sampling_rate
         peak_1_err_sec.append(error_vector_sec[0])
         midpoint_err_sec.append(error_vector_sec[1])
         peak_2_err_sec.append(error_vector_sec[2])
@@ -348,13 +364,37 @@ def main() -> None:
     midpoint_err_sec = np.array(midpoint_err_sec) * 1000.0
     peak_2_err_sec = np.array(peak_2_err_sec) * 1000.0
 
+
+    pk1_mean = np.mean(np.abs(peak_1_err_sec))
+    pk1_std = np.std(np.abs(peak_1_err_sec))
+    midpt_mean = np.mean(np.abs(midpoint_err_sec))
+    midpt_std = np.std(np.abs(midpoint_err_sec))
+    pk2_mean = np.mean(np.abs(peak_2_err_sec))
+    pk2_std = np.std(np.abs(peak_2_err_sec))
+
+
     print("peak 1, midpoint, and peak 2 detection error (ms)")
-    print(np.mean(np.abs(peak_1_err_sec)))
-    print(np.std(np.abs(peak_1_err_sec)))
-    print(np.mean(np.abs(midpoint_err_sec)))
-    print(np.std(np.abs(midpoint_err_sec)))
-    print(np.mean(np.abs(peak_2_err_sec)))
-    print(np.std(np.abs(peak_2_err_sec)))
+    print((pk1_mean, pk1_std))
+    print((midpt_mean, midpt_std))
+    print((pk2_mean, pk2_std))
+
+
+    results_data = [['Abs Error Mean (peak 1)','Abs Error Std (peak 1)',  
+    'Abs Error Mean (Mid pt)','Abs Error Std (Mid pt)', 
+    'Abs Error Mean (peak 2)','Abs Error Std (peak 2)'], 
+    [pk1_mean, pk1_std, midpt_mean, midpt_std, pk2_mean, pk2_std]
+    ]
+
+
+
+
+
+    # Open the file in write mode
+    with open(csv_file_path, mode='w', newline='') as file:
+        # Create a csv.writer object
+        writer = csv.writer(file)
+        # Write data to the CSV file
+        writer.writerows(results_data)
 
 
 
@@ -375,7 +415,7 @@ def main() -> None:
 
         plt.title(f"Example {i + 1}")
         plt.legend()
-        plt.savefig(os.path.join(savefoldername, "prediction_"+str(i)+ ".png" ))
+        #plt.savefig(os.path.join(savefoldername, "prediction_"+str(i)+ ".png" ))
 
         if plot_samples:
             plt.show()
